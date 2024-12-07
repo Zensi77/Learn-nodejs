@@ -1,108 +1,76 @@
 import { Request, Response } from "express";
-
-const todos = [
-  {
-    id: 1,
-    title: "Learn TypeScript",
-    completed: true,
-  },
-  {
-    id: 2,
-    title: "Learn Node.js",
-    completed: false,
-  },
-  {
-    id: 3,
-    title: "Learn Express.js",
-    completed: false,
-  },
-  {
-    id: 4,
-    title: "Learn Nest.js",
-    completed: false,
-  },
-  {
-    id: 5,
-    title: "Learn JavaScript",
-    completed: true,
-  },
-];
+import { prisma } from "../../data/postgres";
+import { CreateTodoDto, UpdateTodoDto } from "../../domain/dtos";
 
 export class TodosController {
   constructor() {}
 
-  public getTodos = (req: Request, res: Response) => {
+  public getTodos = async (req: Request, res: Response) => {
+    const todos = await prisma.todo.findMany();
     res.json(todos);
   };
 
-  public getTodoById = (req: Request, res: Response) => {
+  public getTodoById = async (req: Request, res: Response) => {
     const id = +req.params.id;
     if (!this.checkIsNumber(id)) {
       res.status(400).json({ message: "Invalid ID" });
       return;
     }
 
-    const todo = todos.find((todo) => todo.id === id);
+    const todo = await prisma.todo.findFirst({
+      where: {
+        id: id,
+      },
+    });
 
+    // Si el todo existe, se devuelve, de lo contrario, se devuelve un mensaje de error
     (todo && res.json(todo)) ||
       res.status(404).json({ message: "Task not found" });
   };
 
-  public createTodo = (req: Request, res: Response) => {
-    const { id = todos.length + 1, title, completed = false } = req.body;
-    if (!title) {
-      res.status(400).json({ message: "Title is required" });
-      return;
-    }
-    todos.push({ id, title, completed });
-  };
+  public createTodo = async (req: Request, res: Response) => {
+    const [error, createTodoDTO] = CreateTodoDto.create(req.body);
+    if (error) return res.status(400).json({ message: error });
 
-  public updateTodo = (req: Request, res: Response) => {
-    const id = req.params.id;
-    if (!this.checkIsNumber(id)) {
-      res.status(400).json({ message: "Invalid ID" });
-      return;
-    }
-
-    const todo = todos.find((todo) => todo.id === +id);
-    if (!todo) {
-      res.status(404).json({ message: "Task not found" });
-      return;
-    }
-
-    const { title, completed } = req.body;
-    if (!title) {
-      res.status(400).json({ message: "Title is required" });
-      return;
-    }
-    todo.title = title;
-    completed || (todo.completed = completed);
-
-    //! Por referencia
-    todos.forEach((todo, index) => {
-      if (todo.id === +id) {
-        todos[index] = todo; // Actualiza el valor en el array original
-      }
+    const todo = await prisma.todo.create({
+      data: createTodoDTO!,
+      // select sirve para seleccionar los campos que se quieren devolver en la respuesta
     });
 
     res.json(todo);
   };
 
-  publicDeleteTodo = (req: Request, res: Response) => {
+  public updateTodo = async (req: Request, res: Response) => {
+    const id = req.params.id;
+    const [error, updateTodoDTO] = UpdateTodoDto.create({ ...req.body, id });
+    if (error) return res.status(400).json({ error });
+
+    const todo = await prisma.todo.update({
+      data: updateTodoDTO!.values,
+      where: {
+        id: +id,
+      },
+    });
+
+    res.json(todo);
+  };
+
+  public deleteTodo = async (req: Request, res: Response) => {
     const id = +req.params.id;
     if (!this.checkIsNumber(id)) {
       res.status(400).json({ message: "Invalid ID" });
       return;
     }
 
-    const todo = todos.find((todo) => todo.id === id);
-    if (!todo) {
-      res.status(404).json({ message: "Task not found" });
-      return;
-    }
-    todos.splice(todos.indexOf(todo), 1);
+    const todo = await prisma.todo.delete({
+      where: {
+        id: id,
+      },
+    });
 
-    res.json({ message: "Task deleted" });
+    todo
+      ? res.json(todo)
+      : res.status(404).json({ message: `Todo with id ${id} not found` });
   };
 
   private checkIsNumber = (num: any) => {

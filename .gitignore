@@ -2,7 +2,7 @@
 
 **/mongo/
 **/mongo-test/
-**/postgres/
+**/postgres
 **/postgres-test/
 
 **/dist/
