@@ -1,4 +1,5 @@
 import express, { Router } from "express";
+import compression from "compression";
 import path from "path";
 
 interface Options {
@@ -26,6 +27,7 @@ export class Server {
     // Middleware
     this.app.use(express.json()); // Parseo body a JSON (raw)
     this.app.use(express.urlencoded({ extended: true })); // Parseo body a JSON (x-www-form-urlencoded)
+    this.app.use(compression()); // Comprimir respuestas HTTP para mejorar la velocidad de carga
 
     // Public folder
     this.app.use(express.static(this.public_path));
