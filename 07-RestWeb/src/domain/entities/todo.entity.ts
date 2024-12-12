@@ -11,13 +11,16 @@ export class TodoEntity {
 
   static fromObject(object: { [key: string]: any }) {
     const { id, text, completedAt } = object;
-    if (!id || !text || isNaN(completedAt.getTime())) {
+    if (!id || !text) {
       throw new Error("Invalid object");
     }
 
-    let newDate;
+    let newDate = null;
     if (completedAt) {
       newDate = new Date(completedAt);
+      if (isNaN(newDate.getTime())) {
+        throw new Error("Invalid date");
+      }
     }
 
     return new TodoEntity(id, text, newDate);

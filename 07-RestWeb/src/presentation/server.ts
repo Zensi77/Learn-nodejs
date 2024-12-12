@@ -9,6 +9,7 @@ interface Options {
 }
 
 export class Server {
+  private serverListener?: any;
   private readonly port: number;
   private readonly public_path: string;
   private readonly routes: Router;
@@ -20,7 +21,7 @@ export class Server {
     this.routes = routes;
   }
 
-  private app = express();
+  public readonly app = express();
 
   // Los use hacen que se ejecute en cada request
   async start() {
@@ -43,8 +44,12 @@ export class Server {
       res.sendFile(indexPath);
     });
 
-    this.app.listen(this.port, () => {
+    this.serverListener = this.app.listen(this.port, () => {
       console.log("Server is running on port 3000");
     });
+  }
+
+  close() {
+    this.serverListener.close();
   }
 }
