@@ -2,6 +2,7 @@ import request from "supertest";
 import { testServer } from "../../test-server";
 import { prisma } from "../../../src/data/postgres";
 import { text } from "stream/consumers";
+import exp from "constants";
 
 describe("Todos routes", () => {
   beforeAll(async () => {
@@ -16,7 +17,7 @@ describe("Todos routes", () => {
     await prisma.todo.deleteMany({});
   });
 
-  const todo1 = { id: 1, text: "Todo 1" };
+  const todo1 = { text: "Todo 1" };
   const todo2 = { id: 2, text: "Todo 2", completedAt: null };
 
   test("Should return todos /api/todos", async () => {
@@ -34,12 +35,12 @@ describe("Todos routes", () => {
   });
 
   test("Should return todos /api/todos/:id", async () => {
-    await prisma.todo.create({
+    const todo = await prisma.todo.create({
       data: todo1,
     });
 
     const { body } = await request(testServer.app)
-      .get(`/api/todos/1`)
+      .get(`/api/todos/${todo.id}`)
       .expect(200);
 
     expect(body.text).toBe(todo1.text);
@@ -52,7 +53,7 @@ describe("Todos routes", () => {
       .get(`/api/todos/${id}`)
       .expect(404);
 
-    expect(body).toEqual({ message: "Task not found" });
+    expect(body).toEqual({ message: `Task not found with id ${id}` });
   });
 
   test("Should return a new todo", async () => {
@@ -86,5 +87,75 @@ describe("Todos routes", () => {
     expect(body).toEqual({ message: "Title is required" });
   });
 
-  test("Should return a updated todo api/todo/:id", async () => {});
+  test("Should return a updated todo api/todo/:id", async () => {
+    const todo = await prisma.todo.create({ data: todo1 });
+
+    const { body } = await request(testServer.app)
+      .put(`/api/todos/${todo.id}`)
+      .send({ text: "Updated", completedAt: "2000-09-19" })
+      .expect(200);
+
+    expect(body).toEqual({
+      id: expect.any(Number),
+      text: "Updated",
+      completedAt: "2000-09-19T00:00:00.000Z",
+    });
+  });
+
+  test("Should return a 404 if todo not found", async () => {
+    const todo = await prisma.todo.create({ data: todo1 });
+
+    const { body } = await request(testServer.app)
+      .put(`/api/todos/999`)
+      .send({
+        text: "Updated",
+        completedAt: "2000-09-19",
+      })
+      .expect(404);
+
+    expect(body).toEqual({
+      message: "Task not found with id 999",
+    });
+  });
+
+  test("Should return and updated todo only the date updated", async () => {
+    const todo = await prisma.todo.create({ data: todo1 });
+
+    const { body } = await request(testServer.app)
+      .put(`/api/todos/${todo.id}`)
+      .send({ completedAt: new Date() })
+      .expect(200);
+
+    expect(body).toEqual({
+      id: expect.any(Number),
+      text: todo.text,
+      completedAt: expect.any(String),
+    });
+  });
+
+  test("Should delete a TODO api/todos/:id", async () => {
+    const todo = await prisma.todo.create({ data: todo1 });
+
+    const { body } = await request(testServer.app)
+      .delete(`/api/todos/${todo.id}`)
+      .expect(200);
+
+    expect(body).toEqual({
+      id: todo.id,
+      text: todo.text,
+      completedAt: null,
+    });
+  });
+
+  test("Should return 404 if todo not exists", async () => {
+    const todo = await prisma.todo.create({ data: todo1 });
+
+    const { body } = await request(testServer.app)
+      .delete(`/api/todos/99999`)
+      .expect(404);
+
+    expect(body).toEqual({
+      message: "Task not found with id 99999",
+    });
+  });
 });

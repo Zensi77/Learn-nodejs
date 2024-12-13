@@ -1,6 +1,7 @@
 import { prisma } from "../../data/postgres";
 import {
   CreateTodoDto,
+  CustomError,
   TodoDataSource,
   TodoEntity,
   UpdateTodoDto,
@@ -28,7 +29,7 @@ export class TodoDatasourceImplementation implements TodoDataSource {
       },
     });
     if (!todo) {
-      throw new Error("Task not found");
+      throw new CustomError(`Task not found with id ${id}`, 404);
     }
 
     return TodoEntity.fromObject(todo);
@@ -48,7 +49,7 @@ export class TodoDatasourceImplementation implements TodoDataSource {
   }
 
   async deleteById(id: number): Promise<TodoEntity> {
-    this.findById(id);
+    await this.findById(id);
 
     const todo = await prisma.todo.delete({
       where: {
